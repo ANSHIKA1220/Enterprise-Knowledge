@@ -1,0 +1,30 @@
+[
+  {
+    "id": "TICK-001",
+    "title": "Kubernetes pod OOMKilled in production namespace",
+    "description": "Pod 'api-gateway-7d4f9c' in namespace 'production' is being repeatedly OOMKilled. Memory limit set to 512Mi but container is consuming up to 700Mi during peak load. This began after the v2.4.1 deployment on 2024-06-10. Symptoms: intermittent 503 errors from downstream services, latency spikes to 8s.",
+    "resolution": "Increased memory limit to 1Gi and requests to 512Mi in the Deployment manifest. Also identified a memory leak in the connection pool of the Redis client library (jedis v3.6.0). Upgraded to jedis v3.8.0 which patches CVE-2023-XXXX. Applied HPA with minReplicas=2 to prevent single-pod overload.",
+    "tags": ["kubernetes", "oom", "memory-leak", "redis", "api-gateway", "production"]
+  },
+  {
+    "id": "TICK-002",
+    "title": "CI/CD pipeline fails on Docker build step — layer cache miss",
+    "description": "Jenkins pipeline for the 'data-service' repo fails consistently at the 'docker build' stage. Error: 'failed to solve: failed to read dockerfile: open /var/lib/docker/tmp/buildkit-XXX/Dockerfile: no such file or directory'. Issue started after migrating Jenkins agents to new EC2 instance type (c6i.2xlarge). Build time has increased from 4 minutes to 22 minutes.",
+    "resolution": "Root cause: BuildKit daemon was not enabled on the new AMI. Added DOCKER_BUILDKIT=1 to the Jenkins agent environment variables. Enabled layer caching by mounting /var/lib/docker as a persistent EBS volume. Build time restored to ~4.5 minutes. Added .dockerignore to exclude node_modules and .git from build context.",
+    "tags": ["ci-cd", "jenkins", "docker", "buildkit", "cache", "ec2"]
+  },
+  {
+    "id": "TICK-003",
+    "title": "Database connection pool exhaustion under high load — PostgreSQL",
+    "description": "The 'orders-service' is throwing 'FATAL: remaining connection slots are reserved for non-replication superuser connections' during Black Friday load test. Max connections on RDS PostgreSQL instance is 200 but pgAdmin shows 198 connections all in 'idle' state. Service uses HikariCP with default settings (maximumPoolSize=10, minimumIdle=10) across 20 pod replicas.",
+    "resolution": "Deployed PgBouncer as a connection pooler in 'transaction' mode. Configured pool_size=50 per service with max_client_conn=500. Reduced HikariCP maximumPoolSize to 5 per pod (20 pods * 5 = 100 connections to PgBouncer, PgBouncer multiplexes to 50 actual DB connections). Idle connections dropped from 198 to 12. Added connection leak detection with leakDetectionThreshold=5000.",
+    "tags": ["postgresql", "connection-pool", "hikaricp", "pgbouncer", "orders-service", "performance"]
+  },
+  {
+    "id": "TICK-004",
+    "title": "Grafana dashboard shows missing metrics after Prometheus scrape interval change",
+    "description": "After changing Prometheus global scrape_interval from 15s to 60s to reduce storage costs, several Grafana dashboards show 'No data' for panels using rate() and irate() functions. Affected dashboards: API Latency Overview, Error Rate SLO, Infrastructure Cost. Impact: SRE team is blind to real-time anomalies.",
+    "resolution": "The rate() function requires at least 2 data points within the time window. With scrape_interval=60s, the default rate window of [1m] only captures 1 point. Solution: Updated all rate() calls to use [5m] window (e.g., rate(http_requests_total[5m])). Also added recording rules in Prometheus to pre-compute expensive queries. Dashboards restored. Long-term: consider VictoriaMetrics for cost-efficient high-cardinality metrics.",
+    "tags": ["prometheus", "grafana", "monitoring", "rate-function", "scrape-interval", "sre"]
+  }
+]

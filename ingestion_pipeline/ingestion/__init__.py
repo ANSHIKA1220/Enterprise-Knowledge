@@ -1,0 +1,3 @@
+from .pipeline import ingest_directory
+
+__all__ = ["ingest_directory"]

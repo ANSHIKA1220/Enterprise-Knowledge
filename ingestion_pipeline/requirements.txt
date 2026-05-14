@@ -1,0 +1,20 @@
+# Core pipeline
+pydantic>=2.0,<3.0
+pymupdf>=1.23.0
+
+# Optional: High-fidelity PDF extraction
+llama-parse>=0.4.0
+
+# Optional: Vector database integration
+chromadb>=0.4.0
+
+# Optional: LangChain ecosystem
+langchain>=0.2.0
+langchain-community
+
+# Optional: Graph database integration
+neo4j>=5.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-cov

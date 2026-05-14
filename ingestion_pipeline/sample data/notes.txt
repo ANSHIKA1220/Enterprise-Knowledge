@@ -1,0 +1,3 @@
+Redis connection pools can exhaust database connections under high load.
+PgBouncer multiplexes client connections and reduces idle sessions.
+Connection leak detection should be enabled in HikariCP.
