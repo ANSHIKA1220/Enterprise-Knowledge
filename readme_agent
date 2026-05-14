@@ -1,0 +1,281 @@
+# Multi-Agent Orchestrator
+
+## Overview
+
+This module is the **core decision-making engine** of the Enterprise Knowledge Copilot pipeline. It processes complex user queries regarding IT systems, documentation, and error logs using a **ReAct (Reason + Act)** workflow to dynamically retrieve information from multiple sources and synthesize high-fidelity, context-aware resolutions with built-in trust gates and learning mechanisms.
+
+**Information Sources:**
+- 🗄️ **ChromaDB** — Semantic Vector Search
+- 🔗 **Neo4j** — Relational Knowledge Graph
+
+---
+
+## ✨ Key Features
+
+- 🤖 **Intelligent Routing** — Automatically chooses between `retrieve_vector_context` and `retrieve_graph_context`
+- 🔐 **Trust-Gated Escalation** — Evaluates LLM answers via external Confidence Engine; escalates to human engineers if confidence < 90%
+- 📚 **Self-Learning Feedback Loop** — Captures human-verified resolutions and re-ingests them into the system
+- 🚀 **Gemini 1.5 Pro Integration** — Leverages Google's state-of-the-art model for complex multi-agent reasoning
+- 📊 **Context Window Management** — Intelligently truncates chat histories to maintain focus and token limits
+- ✅ **Structured Output Enforcement** — Uses Pydantic schemas for deterministic and reliable JSON outputs
+
+---
+
+## 📁 Project Structure
+
+```
+enterprise-knowledge-copilot/
+├── agent.py                        # Main Orchestrator Logic
+├── requirements.txt                # Global dependencies
+├── .env.example                    # Template for environment variables
+├── vector_search/                  # Consumed via agent_tool.py
+├── graph_reasoning/                # Consumed via graph_retriever.py
+├── confidence_engine/              # Consumed via evaluator.py
+├── ingestion_pipeline/             # Consumed via pipeline.py
+└── README.md
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Create a Virtual Environment
+
+**Windows PowerShell:**
+```powershell
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+**Windows CMD:**
+```cmd
+python -m venv venv
+venv\Scripts\activate
+```
+
+**macOS / Linux:**
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+### 2. Install Dependencies
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install langchain-google-genai langgraph langchain-openai python-dotenv pydantic chromadb
+```
+
+### 3. Configure API Keys & Environment Variables
+
+Get your Gemini API key from: https://aistudio.google.com/
+
+Create a `.env` file in the root directory:
+
+```env
+GOOGLE_API_KEY="your_gemini_api_key"
+LLAMA_CLOUD_API_KEY="your_llamacloud_api_key"
+NEO4J_URI="bolt://localhost:7687"
+NEO4J_USERNAME="neo4j"
+NEO4J_PASSWORD="your_neo4j_password"
+```
+
+### 4. Verify Installation
+
+```bash
+python -c "import agent; print('Orchestrator import successful')"
+```
+
+**Expected Output:**
+```
+Orchestrator import successful
+```
+
+---
+
+## 💻 Python API Usage
+
+### Running the Copilot Workflow
+
+```python
+import asyncio
+from agent import run_agentic_workflow
+
+async def main():
+    query = "Why is the Payment API returning a timeout error?"
+    response = await run_agentic_workflow(query, thread_id="ticket-1234")
+    
+    print("Status:", response["status"])
+    print("Confidence:", response["confidence_score"])
+    print("Answer:", response["final_answer"])
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Triggering the Feedback Loop
+
+```python
+from agent import process_human_feedback
+
+result = process_human_feedback(
+    user_query="Payment API timeout error during load",
+    final_answer="The Auth Service Redis Cache was stalling. Increased timeout to 500ms.",
+    user_id="engineer_jane"
+)
+
+print(result["status"])
+```
+
+---
+
+## 🔗 Integration with ChromaDB & Neo4j
+
+The orchestrator dynamically imports and triggers retrieval tools built by the ingestion and graph modules.
+
+**Expected Tool Locations:**
+```python
+vector_search.agent_tool.retrieve_vector_context
+graph_reasoning.graph_retriever.get_graph_answer_context
+```
+
+---
+
+## ✅ Validation Summary
+
+This module has been **fully validated**:
+
+✅ LangGraph state transitions successfully verified  
+✅ Gemini 1.5 Pro tool binding functioning correctly  
+✅ Trust-gating thresholds strictly enforced  
+✅ Feedback loop successfully pushes to `ingestion_pipeline`
+
+---
+
+## 🚫 Git Ignore Configuration
+
+Add the following to your `.gitignore`:
+
+```
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+ingestion_pipeline/output/
+sample_data/feedback_loop/
+.vscode/
+.idea/
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### `OutputParserException` or LLM Errors
+
+**Solution:** Ensure `GOOGLE_API_KEY` is properly loaded in your `.env` file and you have installed `langchain-google-genai`:
+
+```bash
+pip install langchain-google-genai
+```
+
+### `ModuleNotFoundError` for Cross-Module Imports
+
+**Solution:** Ensure your terminal is in the `enterprise-knowledge-copilot` root directory and set `PYTHONPATH`:
+
+**Windows PowerShell:**
+```powershell
+$env:PYTHONPATH = "."
+python agent.py
+```
+
+**macOS / Linux:**
+```bash
+export PYTHONPATH="."
+python agent.py
+```
+
+### Neo4j Connection Issues
+
+**Solution:** Verify Neo4j is running and credentials match:
+
+```bash
+# Test connection
+python -c "from neo4j import GraphDatabase; driver = GraphDatabase.driver('bolt://localhost:7687', auth=('neo4j', 'password')); print('Neo4j connected')"
+```
+
+---
+
+## 📚 Main Entry Points
+
+### Agentic Workflow
+```python
+from agent import run_agentic_workflow
+
+async def run_agentic_workflow(
+    user_query: str,
+    thread_id: str = "default_thread"
+) -> dict:
+    """
+    Executes the multi-agent orchestration pipeline.
+    
+    Args:
+        user_query: The user's question or support ticket
+        thread_id: Unique identifier for conversation tracking
+    
+    Returns:
+        {
+            "status": str,
+            "confidence_score": float,
+            "final_answer": str,
+            "sources": list
+        }
+    """
+```
+
+### Feedback Loop
+```python
+from agent import process_human_feedback
+
+def process_human_feedback(
+    user_query: str,
+    final_answer: str,
+    user_id: str = "human_engineer"
+) -> dict:
+    """
+    Processes human verification and re-ingests validated resolutions.
+    
+    Args:
+        user_query: Original user question
+        final_answer: Human-verified solution
+        user_id: Engineer/admin identifier
+    
+    Returns:
+        {"status": str, "ingestion_result": dict}
+    """
+```
+
+---
+
+## 👥 Contributor
+
+**Arpan Mathur**
+
+- **Role:** Multi-Agent Orchestration  
+- **Responsibilities:** 
+  - LangGraph architecture design
+  - Intelligent tool routing
+  - Trust-gated escalation logic
+  - Self-learning integration
+
+---
+
+## 🏆 Status
+
+✅ **Complete** — Production-ready  
+✅ **Validated** — All components tested and integrated  
+✅ **Primary Backend** — Serves as main entry point for Enterprise Knowledge Copilot
+
