@@ -23,13 +23,10 @@ load_dotenv()
 # CROSS-MODULE IMPORTS (Team Architecture)
 # ---------------------------------------------------------
 # 1. Rhythm's Vector Search
-from vector_search.agent_tool import retrieve_vector_context
+from vector_search.agent_tool import semantic_search_tool as retrieve_vector_context
 
 # 2. Yash's Graph Reasoning
 from graph_reasoning.graph_retriever import get_graph_answer_context
-
-# 3. The Dedicated Confidence Engine
-from confidence_engine.evaluator import calculate_confidence
 
 # 4. Anshika's Ingestion Pipeline
 from ingestion_pipeline.ingestion.pipeline import ingest_directory 
@@ -39,9 +36,8 @@ from ingestion_pipeline.ingestion.pipeline import ingest_directory
 # ---------------------------------------------------------
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], operator.add]
-    confidence_score: float
-    escalation_required: bool
     final_answer: str
+    retrieved_context: str
 
 class GraphSearchInput(BaseModel):
     query: str = Field(description="The query to trace root causes, dependencies, and relationships in Neo4j.")
@@ -84,9 +80,11 @@ async def orchestrator_node(state: AgentState):
         
     sys_msg = SystemMessage(content=(
         "You are an enterprise orchestrator. Analyze the IT or system query. "
-        "Call 'retrieve_vector_context' for documentation/logs or 'retrieve_graph_context_tool' "
-        "for system relationships and root causes. If you have enough context to diagnose the issue, "
-        "do not call any tools."
+        "You MUST NOT answer the user's query from your own knowledge. "
+        "You MUST call 'retrieve_vector_context' for documentation/logs or 'retrieve_graph_context_tool' "
+        "for system relationships and root causes to gather information first. "
+        "Once you have gathered sufficient context through tools to diagnose the issue, "
+        "respond without calling any more tools."
     ))
     
     response = await llm_with_tools.ainvoke([sys_msg] + messages)
@@ -125,24 +123,14 @@ async def reasoning_node(state: AgentState):
         final_content = diagnosis.resolution
         
         retrieved_context = "\n".join([msg.content for msg in messages if isinstance(msg, ToolMessage)])
-        user_query = messages[0].content
-        
-        confidence = calculate_confidence(user_query, retrieved_context, final_content)
-        escalation = True if confidence < 90.0 else False
-        
-        if escalation:
-             final_content = f"⚠️ CONFIDENCE LOW ({confidence}%). ESCALATING TO HUMAN ENGINEER.\n\nPreliminary Findings: {final_content}"
-
     except Exception:
-        final_content = "SYSTEM ERROR: Diagnosis generation failed. Escalating to human."
-        confidence = 0.0
-        escalation = True
+        final_content = "SYSTEM ERROR: Diagnosis generation failed."
+        retrieved_context = "\n".join([msg.content for msg in messages if isinstance(msg, ToolMessage)])
         
     return {
         "messages": [AIMessage(content=final_content)],
         "final_answer": final_content,
-        "confidence_score": confidence,
-        "escalation_required": escalation
+        "retrieved_context": retrieved_context
     }
 
 # ---------------------------------------------------------
@@ -182,26 +170,21 @@ copilot_app = workflow.compile(checkpointer=memory)
 # 6. Main Integration Entry Point
 # ---------------------------------------------------------
 async def run_agentic_workflow(user_query: str, thread_id: str = "default_thread") -> dict:
-    """Triggers the entire reasoning process."""
+    """Triggers the entire reasoning process and returns the draft answer and context."""
     config = {"configurable": {"thread_id": thread_id}}
     initial_state = {"messages": [HumanMessage(content=user_query)]}
     
     try:
         final_state = await copilot_app.ainvoke(initial_state, config=config)
-        status = "ESCALATED_TO_HUMAN" if final_state.get("escalation_required") else "RESOLVED"
         
         return {
-            "status": status,
-            "confidence_score": final_state.get("confidence_score"),
-            "final_answer": final_state.get("final_answer"), 
-            "context_history": [msg.content for msg in final_state["messages"]]
+            "agent_draft": final_state.get("final_answer", ""), 
+            "context": final_state.get("retrieved_context", "")
         }
     except Exception as e:
         return {
-            "status": "SYSTEM_FAILURE",
-            "confidence_score": 0.0,
-            "final_answer": "CRITICAL ORCHESTRATION FAILURE",
-            "context_history": [str(e)]
+            "agent_draft": "CRITICAL ORCHESTRATION FAILURE",
+            "context": str(e)
         }
 
 # ---------------------------------------------------------

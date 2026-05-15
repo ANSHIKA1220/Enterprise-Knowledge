@@ -1,0 +1,11 @@
+{
+  "run_id": "f0d3fb2d-e22d-4941-8fbc-5e971ca250de",
+  "started_at": "2026-05-14T06:37:00.719243+00:00",
+  "finished_at": "2026-05-14T06:37:25.120613+00:00",
+  "files_attempted": 5,
+  "files_succeeded": 5,
+  "files_failed": 0,
+  "total_chunks": 16,
+  "errors": [],
+  "output_path": "output/chunks.jsonl"
+}

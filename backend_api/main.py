@@ -22,7 +22,7 @@ class ChatResponse(BaseModel):
     action: str
 
 # Mock for Arpan's workflow
-def run_agentic_workflow_mock(user_query: str):
+async def run_agentic_workflow_mock(user_query: str):
     """
     Mocking Arpan's workflow. In the real integration, this should import run_agentic_workflow
     from the multi-agent orchestration module.
@@ -34,7 +34,7 @@ def run_agentic_workflow_mock(user_query: str):
 
 try:
     # Try importing real orchestration if it exists
-    from orchestration.agent import run_agentic_workflow
+    from agent import run_agentic_workflow
 except ImportError:
     run_agentic_workflow = run_agentic_workflow_mock
 
@@ -42,7 +42,7 @@ except ImportError:
 async def chat_endpoint(request: ChatRequest):
     try:
         # Step 1: Call Arpan's workflow
-        workflow_result = run_agentic_workflow(request.query)
+        workflow_result = await run_agentic_workflow(request.query)
         agent_draft = workflow_result.get("agent_draft", "")
         context = workflow_result.get("context", "")
 

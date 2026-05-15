@@ -1,9 +1,12 @@
 import os
 import json
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import JsonOutputParser
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class ConfidenceEvaluation(BaseModel):
     score: float = Field(description="Confidence score between 0.0 and 1.0 representing how well the agent's draft is supported by the retrieved context.")
@@ -16,7 +19,7 @@ def evaluate_and_route_response(agent_draft: str, context: str, llm=None):
     Routes the response based on the score (>= 0.90 for final answer, < 0.90 for hand-off summary).
     """
     if llm is None:
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        llm = ChatGoogleGenerativeAI(model="gemini-1.5-pro", temperature=0, max_retries=3)
 
     prompt = PromptTemplate(
         template="""You are an expert trust-gating evaluation system. Your task is to evaluate an agent's drafted answer against the retrieved context.
