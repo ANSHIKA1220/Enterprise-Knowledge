@@ -128,6 +128,7 @@ Access the UI at `http://localhost:7860`.
 *   **Yash Pratap Singh** - Graph Reasoning Module
 *   **Rhythm** - Vector Search Engine
 *   **Mohit** - Confidence & Evaluation Engine
+*   **Kavyansh** - Backend and Project Integration
 
 ---
 
