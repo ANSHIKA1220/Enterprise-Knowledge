@@ -131,5 +131,4 @@ Access the UI at `http://localhost:7860`.
 
 ---
 
-## 📄 License
-This project is licensed under the MIT License.
+
